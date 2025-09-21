@@ -1,0 +1,12 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = require("express");
+const AdminController_1 = require("../controllers/AdminController");
+const router = (0, express_1.Router)();
+const controller = new AdminController_1.AdminController();
+router.post('/alerts', controller.createAlert);
+router.put('/alerts/:id', controller.updateAlert);
+router.get('/alerts', controller.listAlerts);
+router.post('/reminders/trigger', controller.triggerReminders);
+router.get('/analytics', controller.analytics);
+exports.default = router;

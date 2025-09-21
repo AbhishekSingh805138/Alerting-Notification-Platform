@@ -1,0 +1,240 @@
+<section class="admin-dashboard" *ngIf="!loading; else loadingState">
+  <header class="dashboard-header">
+    <div>
+      <h1>Admin Console</h1>
+      <p>Manage alerts, configure visibility, and monitor engagement.</p>
+    </div>
+    <div class="header-actions">
+      <button type="button" (click)="triggerReminders()">Trigger Reminders</button>
+      <button type="button" class="ghost" (click)="refreshAlerts()">Refresh</button>
+    </div>
+  </header>
+
+  <div *ngIf="error" class="error">{{ error }}</div>
+
+  <section class="filters" [formGroup]="filtersForm">
+    <h2>Alert Filters</h2>
+    <div class="filters-grid">
+      <label>
+        <span>Severity</span>
+        <select formControlName="severity">
+          <option value="">All</option>
+          <option *ngFor="let option of severities" [value]="option.value">{{ option.label }}</option>
+        </select>
+      </label>
+      <label>
+        <span>Status</span>
+        <select formControlName="status">
+          <option value="">All</option>
+          <option *ngFor="let option of statuses" [value]="option.value">{{ option.label }}</option>
+        </select>
+      </label>
+      <label>
+        <span>Audience</span>
+        <select formControlName="audience">
+          <option value="">All</option>
+          <option *ngFor="let option of audiences" [value]="option.value">{{ option.label }}</option>
+        </select>
+      </label>
+    </div>
+    <div class="actions">
+      <button type="button" (click)="applyFilters()">Apply Filters</button>
+      <button type="button" class="ghost" (click)="clearFilters()">Clear</button>
+    </div>
+  </section>
+
+  <section class="create-alert">
+    <h2>{{ submitLabel }}</h2>
+    <p *ngIf="isEditing" class="editing-indicator">
+      Editing alert <strong>{{ editingAlert?.title }}</strong>. Changes save immediately for all recipients.
+    </p>
+    <form [formGroup]="form" (ngSubmit)="submit()">
+      <div class="form-grid">
+        <label>
+          <span>Title</span>
+          <input type="text" formControlName="title" placeholder="Database outage" />
+        </label>
+        <label>
+          <span>Severity</span>
+          <select formControlName="severity">
+            <option *ngFor="let option of severities" [value]="option.value">{{ option.label }}</option>
+          </select>
+        </label>
+        <label>
+          <span>Delivery Type</span>
+          <select formControlName="deliveryType">
+            <option *ngFor="let option of deliveryTypes" [value]="option.value" [disabled]="option.disabled">
+              {{ option.label }}
+            </option>
+          </select>
+        </label>
+        <label>
+          <span>Reminder Frequency (minutes)</span>
+          <input type="number" min="15" step="15" formControlName="reminderFrequencyMinutes" />
+        </label>
+        <label>
+          <span>Start At</span>
+          <input type="datetime-local" formControlName="startAt" />
+        </label>
+        <label>
+          <span>End At</span>
+          <input type="datetime-local" formControlName="endAt" />
+        </label>
+      </div>
+
+      <label class="full-width">
+        <span>Message</span>
+        <textarea formControlName="message" rows="4" placeholder="Outline the impact, ETA, and next steps."></textarea>
+      </label>
+
+      <div class="toggles">
+        <label>
+          <input type="checkbox" formControlName="visibleToOrganization" />
+          <span>Visible to entire organization</span>
+        </label>
+        <label>
+          <input type="checkbox" formControlName="remindersEnabled" />
+          <span>Reminders enabled</span>
+        </label>
+      </div>
+
+      <div class="audience-section">
+        <div>
+          <h3>Teams</h3>
+          <p>Select one or more teams to include. Leave empty to skip team targeting.</p>
+          <div class="audience-list">
+            <label *ngFor="let team of teams">
+              <input type="checkbox" [checked]="selectedTeamIds.has(team.id)" (change)="toggleTeam(team.id, $any($event.target).checked)" />
+              <span>{{ team.name }}</span>
+            </label>
+          </div>
+        </div>
+        <div>
+          <h3>Users</h3>
+          <p>Target specific users directly.</p>
+          <div class="audience-list">
+            <label *ngFor="let user of users">
+              <input type="checkbox" [checked]="selectedUserIds.has(user.id)" (change)="toggleUser(user.id, $any($event.target).checked)" />
+              <span>{{ user.name }} <small>({{ teamName(user.teamId) }})</small></span>
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <div class="actions">
+        <button type="submit" [disabled]="creating">{{ creating ? (isEditing ? 'Saving…' : 'Creating…') : submitLabel }}</button>
+        <button type="button" class="ghost" (click)="resetForm()" [disabled]="creating || isEditing">Clear</button>
+        <button type="button" class="ghost" *ngIf="isEditing" (click)="cancelEdit()">Cancel edit</button>
+      </div>
+    </form>
+  </section>
+
+  <section class="alert-list">
+    <h2>Alerts</h2>
+    <p *ngIf="alerts.length === 0">No alerts match the current filters.</p>
+    <div class="alert-card" *ngFor="let alert of alerts; trackBy: trackByAlertId">
+      <div class="card-header">
+        <div>
+          <h3>{{ alert.title }}</h3>
+          <span class="severity" [class]="alert.severity">{{ alert.severity | uppercase }}</span>
+          <span class="delivery">{{ alert.deliveryType | uppercase }}</span>
+          <span *ngIf="alert.visibleToOrganization" class="badge">Org-wide</span>
+        </div>
+        <div class="card-actions">
+          <button type="button" (click)="editAlert(alert)">Edit</button>
+          <button type="button" (click)="toggleReminders(alert)">
+            {{ alert.remindersEnabled ? 'Disable Reminders' : 'Enable Reminders' }}
+          </button>
+          <button type="button" class="ghost" (click)="archiveAlert(alert)">
+            {{ alert.isArchived ? 'Unarchive' : 'Archive' }}
+          </button>
+        </div>
+      </div>
+      <p class="message">{{ alert.message }}</p>
+      <dl class="meta">
+        <div>
+          <dt>Recipients</dt>
+          <dd>{{ alert.stats.totalRecipients }}</dd>
+        </div>
+        <div>
+          <dt>Read</dt>
+          <dd>{{ alert.stats.readCount }}</dd>
+        </div>
+        <div>
+          <dt>Snoozed</dt>
+          <dd>{{ alert.stats.snoozedCount }}</dd>
+        </div>
+        <div>
+          <dt>Reminders</dt>
+          <dd>{{ alert.stats.activeReminders ? 'On' : 'Off' }}</dd>
+        </div>
+        <div>
+          <dt>Window</dt>
+          <dd>
+            <span>{{ alert.startAt | date:'short' }}</span>
+            <span *ngIf="alert.endAt"> ? {{ alert.endAt | date:'short' }}</span>
+          </dd>
+        </div>
+      </dl>
+      <div class="audience">
+        <div>
+          <strong>Teams:</strong>
+          <span *ngIf="alert.teams.length === 0">-</span>
+          <span *ngFor="let team of alert.teams; let last = last">
+            {{ team.name }}<span *ngIf="!last">, </span>
+          </span>
+        </div>
+        <div>
+          <strong>Users:</strong>
+          <span *ngIf="alert.directUsers.length === 0">-</span>
+          <span *ngFor="let user of alert.directUsers; let last = last">
+            {{ user.name }}<span *ngIf="!last">, </span>
+          </span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="analytics" *ngIf="analytics">
+    <h2>Analytics</h2>
+    <div class="analytics-grid">
+      <div class="metric">
+        <span class="label">Total Alerts</span>
+        <span class="value">{{ analytics.totalAlerts }}</span>
+      </div>
+      <div class="metric">
+        <span class="label">Deliveries</span>
+        <span class="value">{{ analytics.deliveredCount }}</span>
+      </div>
+      <div class="metric">
+        <span class="label">Read</span>
+        <span class="value">{{ analytics.readCount }}</span>
+      </div>
+      <div class="metric">
+        <span class="label">Snoozed</span>
+        <span class="value">{{ analytics.snoozedCount }}</span>
+      </div>
+    </div>
+    <div class="severity-breakdown">
+      <h3>Severity Breakdown</h3>
+      <ul>
+        <li>Info: {{ analytics.severityBreakdown['info'] }}</li>
+        <li>Warning: {{ analytics.severityBreakdown['warning'] }}</li>
+        <li>Critical: {{ analytics.severityBreakdown['critical'] }}</li>
+      </ul>
+    </div>
+    <div class="snooze-breakdown" *ngIf="analytics.alertSnoozeBreakdown.length">
+      <h3>Snoozed Alerts</h3>
+      <ul>
+        <li *ngFor="let item of analytics.alertSnoozeBreakdown">
+          {{ item.title }} - {{ item.snoozed }} snoozed
+        </li>
+      </ul>
+    </div>
+  </section>
+</section>
+
+<ng-template #loadingState>
+  <div class="loading">Loading admin data.</div>
+</ng-template>
+

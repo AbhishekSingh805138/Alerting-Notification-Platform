@@ -1,0 +1,135 @@
+.user-dashboard {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+
+  header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+
+    h2 {
+      margin: 0;
+    }
+
+    .controls {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+
+      label {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+      }
+    }
+  }
+
+  .error {
+    padding: 0.75rem 1rem;
+    border-radius: 0.5rem;
+    background: #ffe6e6;
+    color: #7a1c1c;
+  }
+
+  .loading {
+    padding: 1rem;
+    text-align: center;
+  }
+
+  .alert {
+    border: 1px solid #dde1e7;
+    border-radius: 0.75rem;
+    padding: 1.25rem;
+    background: #ffffff;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .alert-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 1rem;
+
+    h3 {
+      margin: 0;
+    }
+
+    .actions {
+      display: flex;
+      gap: 0.75rem;
+    }
+  }
+
+  .badge {
+    margin-left: 0.5rem;
+    padding: 0.25rem 0.5rem;
+    border-radius: 999px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    background: #d1d5db;
+
+    &.info {
+      background: #dbeafe;
+      color: #1d4ed8;
+    }
+    &.warning {
+      background: #fff4ce;
+      color: #92400e;
+    }
+    &.critical {
+      background: #fee2e2;
+      color: #b91c1c;
+    }
+    &.snoozed {
+      background: #ede9fe;
+      color: #5b21b6;
+    }
+  }
+
+  .message {
+    margin: 0;
+    color: #374151;
+  }
+
+  .meta {
+    display: grid;
+    gap: 0.75rem;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+
+    dt {
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      color: #6b7280;
+    }
+
+    dd {
+      margin: 0;
+      font-weight: 600;
+    }
+  }
+}
+
+button {
+  border: none;
+  border-radius: 0.5rem;
+  background: #1f6feb;
+  color: #ffffff;
+  padding: 0.5rem 1rem;
+  cursor: pointer;
+  font: inherit;
+
+  &:disabled {
+    background: #9ca3af;
+    cursor: not-allowed;
+  }
+
+  &.ghost {
+    background: transparent;
+    color: #1f2937;
+    border: 1px solid #d1d5db;
+  }
+}

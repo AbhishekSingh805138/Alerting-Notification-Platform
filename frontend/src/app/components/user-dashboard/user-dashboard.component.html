@@ -1,0 +1,54 @@
+<section class="user-dashboard">
+  <header>
+    <div>
+      <h2>{{ userName || 'Select a user' }}</h2>
+      <p *ngIf="userId">Review alerts targeted to this user. Snoozed alerts reappear the next day.</p>
+    </div>
+    <div class="controls" *ngIf="userId">
+      <label>
+        <input type="checkbox" [checked]="includeSnoozed" (change)="toggleIncludeSnoozed($any($event.target).checked)" />
+        <span>Include snoozed</span>
+      </label>
+      <button type="button" (click)="refresh()">Refresh</button>
+    </div>
+  </header>
+
+  <div *ngIf="error" class="error">{{ error }}</div>
+  <div *ngIf="loading" class="loading">Loading alerts…</div>
+
+  <div *ngIf="!loading && userId">
+    <p *ngIf="alerts.length === 0">No active alerts for this user.</p>
+    <div class="alert" *ngFor="let alert of alerts; trackBy: trackById">
+      <div class="alert-header">
+        <div>
+          <h3>{{ alert.title }}</h3>
+          <span class="badge" [class]="alert.severity">{{ alert.severity | uppercase }}</span>
+          <span *ngIf="alert.isSnoozed" class="badge snoozed">Snoozed</span>
+        </div>
+        <div class="actions">
+          <button type="button" (click)="toggleRead(alert)">
+            {{ alert.isRead ? 'Mark as Unread' : 'Mark as Read' }}
+          </button>
+          <button type="button" class="ghost" (click)="snooze(alert)" [disabled]="alert.isSnoozed">
+            Snooze for today
+          </button>
+        </div>
+      </div>
+      <p class="message">{{ alert.message }}</p>
+      <dl class="meta">
+        <div>
+          <dt>Last Reminder</dt>
+          <dd>{{ alert.lastReminderAt ? (alert.lastReminderAt | date:'short') : '—' }}</dd>
+        </div>
+        <div>
+          <dt>Next Reminder</dt>
+          <dd>{{ alert.remindersEnabled ? 'Every ' + alert.reminderFrequencyMinutes + ' min' : 'Disabled' }}</dd>
+        </div>
+        <div>
+          <dt>Window</dt>
+          <dd>{{ alert.startAt | date:'short' }}<span *ngIf="alert.endAt"> ? {{ alert.endAt | date:'short' }}</span></dd>
+        </div>
+      </dl>
+    </div>
+  </div>
+</section>

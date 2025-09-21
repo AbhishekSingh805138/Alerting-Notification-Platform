@@ -1,0 +1,10 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = require("express");
+const UserController_1 = require("../controllers/UserController");
+const router = (0, express_1.Router)();
+const controller = new UserController_1.UserController();
+router.get('/users/:userId/alerts', controller.getAlerts);
+router.patch('/users/:userId/alerts/:alertId/read-state', controller.setAlertReadState);
+router.post('/users/:userId/alerts/:alertId/snooze', controller.snoozeAlert);
+exports.default = router;

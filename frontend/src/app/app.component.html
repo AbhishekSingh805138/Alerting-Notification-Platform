@@ -1,0 +1,38 @@
+<main class="layout">
+  <header class="top-bar">
+    <div class="branding">
+      <h1>Alerting &amp; Notification Platform</h1>
+      <p>Lightweight control for recurring alerts and user preferences.</p>
+    </div>
+    <nav class="view-switch">
+      <button type="button" [class.active]="view === 'admin'" (click)="selectView('admin')">Admin</button>
+      <button type="button" [class.active]="view === 'user'" (click)="selectView('user')">End User</button>
+    </nav>
+  </header>
+
+  <section class="content">
+    <app-admin-dashboard *ngIf="view === 'admin'"></app-admin-dashboard>
+
+    <section *ngIf="view === 'user'" class="user-view">
+      <div class="user-picker">
+        <label>
+          <span>Select user</span>
+          <select [disabled]="loadingUsers" (change)="onUserChange($event)">
+            <option value="">Choose…</option>
+            <option *ngFor="let user of users" [value]="user.id" [selected]="user.id === selectedUserId">
+              {{ user.name }}
+            </option>
+          </select>
+        </label>
+        <button type="button" (click)="loadUsers()" [disabled]="loadingUsers">Refresh users</button>
+      </div>
+      <div *ngIf="error" class="error">{{ error }}</div>
+      <app-user-dashboard
+        *ngIf="selectedUserId"
+        [userId]="selectedUserId"
+        [userName]="selectedUserName"
+      ></app-user-dashboard>
+      <p *ngIf="!selectedUserId && !loadingUsers" class="placeholder">Select a user to review alerts.</p>
+    </section>
+  </section>
+</main>
