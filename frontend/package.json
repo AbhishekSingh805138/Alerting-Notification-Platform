@@ -2,11 +2,11 @@
   "name": "alerting-frontend",
   "version": "0.0.0",
   "scripts": {
-    "ng": "ng",
-    "start": "ng serve",
-    "build": "ng build",
-    "watch": "ng build --watch --configuration development",
-    "test": "ng test"
+    "ng": "node ./node_modules/@angular/cli/bin/ng.js",
+    "start": "npm run ng -- serve",
+    "build": "npm run ng -- build",
+    "watch": "npm run ng -- build --watch --configuration development",
+    "test": "npm run ng -- test"
   },
   "private": true,
   "dependencies": {

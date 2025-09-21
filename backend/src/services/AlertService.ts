@@ -8,6 +8,8 @@ import { UserAlertPreference } from '../entities/UserAlertPreference';
 import { CreateAlertDto, UpdateAlertDto, AlertFilterDto } from '../dtos/alert.dto';
 import { startOfNextDay } from '../utils/date';
 import { NotificationDispatcher } from './NotificationDispatcher';
+import { AlertObservable, NotificationObserver } from './observers/AlertObservable';
+import { UserAlertPreferenceStateMachine } from './state/UserAlertPreferenceState';
 
 export interface UserAlertView {
   alert: Alert;
@@ -25,12 +27,15 @@ export class AlertService {
 
   private dispatcher: NotificationDispatcher;
 
+  private alertObservable: AlertObservable;
+
   constructor() {
     this.alertRepo = AppDataSource.getRepository(Alert);
     this.teamRepo = AppDataSource.getRepository(Team);
     this.userRepo = AppDataSource.getRepository(User);
     this.prefRepo = AppDataSource.getRepository(UserAlertPreference);
     this.dispatcher = new NotificationDispatcher();
+    this.alertObservable = new AlertObservable([new NotificationObserver(this.dispatcher)]);
   }
 
   async createAlert(payload: CreateAlertDto): Promise<Alert> {
@@ -217,9 +222,20 @@ export class AlertService {
       throw new Error('Preference not found for user/alert');
     }
 
-    pref.isRead = isRead;  if (isRead) {     await this.dispatcher.dispatch(pref.alert, pref.user, {      status: DeliveryStatus.READ,       reason: 'read',   });   }
+    const stateMachine = new UserAlertPreferenceStateMachine(pref);
+    const now = new Date();
+    const change = await stateMachine.setRead(isRead, now);
 
-    return this.prefRepo.save(pref);
+    const saved = await this.prefRepo.save(pref);
+
+    if (change) {
+      await this.alertObservable.notify(pref.alert, pref.user, {
+        status: change.status,
+        reason: change.reason,
+      });
+    }
+
+    return saved;
   }
 
   async snoozeAlert(userId: string, alertId: string): Promise<UserAlertPreference> {
@@ -232,10 +248,20 @@ export class AlertService {
     }
 
     const now = new Date();
-    pref.snoozedUntil = startOfNextDay(now);
+    const stateMachine = new UserAlertPreferenceStateMachine(pref);
+    const snoozeUntil = startOfNextDay(now);
+    const change = await stateMachine.snooze(snoozeUntil, now);
 
-    await this.dispatcher.dispatch(pref.alert, pref.user, {status: DeliveryStatus.SNOOZED,     reason: 'snooze',   });   pref.lastReminderAt = now;
-    return this.prefRepo.save(pref);
+    const saved = await this.prefRepo.save(pref);
+
+    if (change) {
+      await this.alertObservable.notify(pref.alert, pref.user, {
+        status: change.status,
+        reason: change.reason,
+      });
+    }
+
+    return saved;
   }
 
 
@@ -290,10 +316,13 @@ export class AlertService {
 
     let deliveries = 0;
     for (const pref of due) {
-      await this.dispatcher.dispatch(pref.alert, pref.user, {status: DeliveryStatus.DELIVERED,     reason: 'reminder',    });
       pref.lastReminderAt = now;
       pref.lastDeliveredAt = now;
       await this.prefRepo.save(pref);
+      await this.alertObservable.notify(pref.alert, pref.user, {
+        status: DeliveryStatus.DELIVERED,
+        reason: 'reminder',
+      });
       deliveries += 1;
     }
 
@@ -381,7 +410,7 @@ export class AlertService {
 
     if (deliver && savedNewPreferences.length) {
       for (const pref of savedNewPreferences) {
-        await this.dispatcher.dispatch(alert, pref.user, {
+        await this.alertObservable.notify(alert, pref.user, {
           status: DeliveryStatus.DELIVERED,
           reason: 'initial',
         });
@@ -389,15 +418,4 @@ export class AlertService {
     }
   }
 }
-
-
-
-
-
-
-
-
-
-
-
 

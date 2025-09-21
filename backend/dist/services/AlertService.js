@@ -10,14 +10,16 @@ const User_1 = require("../entities/User");
 const UserAlertPreference_1 = require("../entities/UserAlertPreference");
 const date_1 = require("../utils/date");
 const NotificationDispatcher_1 = require("./NotificationDispatcher");
+const AlertObservable_1 = require("./observers/AlertObservable");
+const UserAlertPreferenceState_1 = require("./state/UserAlertPreferenceState");
 class AlertService {
     constructor() {
         this.alertRepo = data_source_1.AppDataSource.getRepository(Alert_1.Alert);
         this.teamRepo = data_source_1.AppDataSource.getRepository(Team_1.Team);
         this.userRepo = data_source_1.AppDataSource.getRepository(User_1.User);
         this.prefRepo = data_source_1.AppDataSource.getRepository(UserAlertPreference_1.UserAlertPreference);
-        r;
         this.dispatcher = new NotificationDispatcher_1.NotificationDispatcher();
+        this.alertObservable = new AlertObservable_1.AlertObservable([new AlertObservable_1.NotificationObserver(this.dispatcher)]);
     }
     async createAlert(payload) {
         if (!payload.title || !payload.message) {
@@ -174,17 +176,17 @@ class AlertService {
         if (!pref) {
             throw new Error('Preference not found for user/alert');
         }
-        pref.isRead = isRead;
-        r;
-        n;
-        if (isRead) {
-            r;
-            n;
-            await this.dispatcher.dispatch(pref.alert, pref.user, { r, n, status: NotificationDelivery_1.DeliveryStatus.READ, r, n, reason: 'read', r, n });
-            r;
-            n;
+        const stateMachine = new UserAlertPreferenceState_1.UserAlertPreferenceStateMachine(pref);
+        const now = new Date();
+        const change = await stateMachine.setRead(isRead, now);
+        const saved = await this.prefRepo.save(pref);
+        if (change) {
+            await this.alertObservable.notify(pref.alert, pref.user, {
+                status: change.status,
+                reason: change.reason,
+            });
         }
-        return this.prefRepo.save(pref);
+        return saved;
     }
     async snoozeAlert(userId, alertId) {
         const pref = await this.prefRepo.findOne({
@@ -195,14 +197,17 @@ class AlertService {
             throw new Error('Preference not found for user/alert');
         }
         const now = new Date();
-        pref.snoozedUntil = (0, date_1.startOfNextDay)(now);
-        await this.dispatcher.dispatch(pref.alert, pref.user, { r, n, status: NotificationDelivery_1.DeliveryStatus.SNOOZED, r, n, reason: 'snooze', r, n });
-        r;
-        n;
-        r;
-        n;
-        pref.lastReminderAt = now;
-        return this.prefRepo.save(pref);
+        const stateMachine = new UserAlertPreferenceState_1.UserAlertPreferenceStateMachine(pref);
+        const snoozeUntil = (0, date_1.startOfNextDay)(now);
+        const change = await stateMachine.snooze(snoozeUntil, now);
+        const saved = await this.prefRepo.save(pref);
+        if (change) {
+            await this.alertObservable.notify(pref.alert, pref.user, {
+                status: change.status,
+                reason: change.reason,
+            });
+        }
+        return saved;
     }
     async triggerReminders() {
         const now = new Date();
@@ -245,10 +250,13 @@ class AlertService {
         }
         let deliveries = 0;
         for (const pref of due) {
-            await this.dispatcher.dispatch(pref.alert, pref.user, { r, n, status: NotificationDelivery_1.DeliveryStatus.DELIVERED, r, n, reason: 'reminder', r, n });
             pref.lastReminderAt = now;
             pref.lastDeliveredAt = now;
             await this.prefRepo.save(pref);
+            await this.alertObservable.notify(pref.alert, pref.user, {
+                status: NotificationDelivery_1.DeliveryStatus.DELIVERED,
+                reason: 'reminder',
+            });
             deliveries += 1;
         }
         return { processed: due.length, deliveries };
@@ -321,7 +329,7 @@ class AlertService {
         const savedNewPreferences = newPreferences.length ? await this.prefRepo.save(newPreferences) : [];
         if (deliver && savedNewPreferences.length) {
             for (const pref of savedNewPreferences) {
-                await this.dispatcher.dispatch(alert, pref.user, {
+                await this.alertObservable.notify(alert, pref.user, {
                     status: NotificationDelivery_1.DeliveryStatus.DELIVERED,
                     reason: 'initial',
                 });

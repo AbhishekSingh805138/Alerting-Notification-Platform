@@ -7,6 +7,8 @@ const controller = new AdminController_1.AdminController();
 router.post('/alerts', controller.createAlert);
 router.put('/alerts/:id', controller.updateAlert);
 router.get('/alerts', controller.listAlerts);
+router.get('/teams', controller.listTeams);
+router.get('/users', controller.listUsers);
 router.post('/reminders/trigger', controller.triggerReminders);
 router.get('/analytics', controller.analytics);
 exports.default = router;
